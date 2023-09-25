@@ -1,0 +1,103 @@
+{% csrf_token %}
+<!-- display_text.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Display and Edit Text</title>
+    <style>
+      .timestamp {
+        color: gray;
+        font-weight: bold;
+        margin-bottom: 10px; /* Add some spacing between blocks */
+      }
+
+      /* Style to remove textarea border and background */
+      .text-editable {
+        border: none;
+        background-color: transparent;
+        resize: none; /* Disable textarea resizing */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Display and Edit Text</h1>
+    <button id="display-button">Display Text File</button>
+    <div id="text-content-container"></div>
+    <button id="save-button" style="display: none">Save</button>
+    <!-- Hidden by default -->
+
+    <script>
+      let editedTextData = []; // Array to store edited text data
+
+      document.getElementById("display-button").addEventListener("click", function() {
+          // Fetch the text file contents when the button is clicked
+          fetch("/get_text_file/")
+          .then(response => response.text())
+          .then(data => {
+              const textContentContainer = document.getElementById("text-content-container");
+              textContentContainer.innerHTML = ''; // Clear previous content
+
+              // Split the text data by lines
+              const lines = data.split('\n');
+
+              // Create a blockquote for each line with the timestamp and text
+              lines.forEach(line => {
+                  const parts = line.split('\t');
+                  if (parts.length === 2) {
+                      const timestamp = parts[0];
+                      const text = parts[1];
+
+                      // Create a blockquote for the line
+                      const blockquote = document.createElement("blockquote");
+
+                      // Create a timestamp element within the blockquote
+                      const timestampElement = document.createElement("p");
+                      timestampElement.classList.add("timestamp");
+                      timestampElement.textContent = timestamp;
+                      blockquote.appendChild(timestampElement);
+
+                      // Create a textarea for the editable text
+                      const textArea = document.createElement("textarea");
+                      textArea.value = text; // Set the text content in the textarea
+                      textArea.classList.add("text-editable"); // Apply custom class
+                      textArea.rows = 3; // Adjust the number of rows as needed
+                      textArea.cols = 40; // Adjust the number of columns as needed
+                      blockquote.appendChild(textArea);
+
+                      // Append the blockquote to the main container
+                      textContentContainer.appendChild(blockquote);
+
+                      editedTextData.push({ timestamp, textArea });
+                  }
+              });
+
+              // Show the "Save" button after loading the text
+              document.getElementById("save-button").style.display = "block";
+          });
+      });
+
+      document.getElementById("save-button").addEventListener("click", function() {
+          // Get the edited text content
+          const newData = editedTextData.map(item => `${item.timestamp}\t${item.textArea.value.replace(/\n/g, '\n')}`).join('\n');
+          
+
+          // Send the edited text content to a Django view for saving
+          fetch("/save_text_file/", {
+              method: "POST",
+              headers: {
+                  "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ data: newData }),
+          })
+          .then(response => {
+              if (response.ok) {
+                  alert("Text saved successfully.");
+              } else {
+                  alert("Error saving text.");
+              }
+          });
+      });
+    </script>
+  </body>
+</html>
